@@ -1,0 +1,26 @@
+<package>
+  <description brief="jrl_controller_manager">
+
+     jrl_controller_manager
+
+  </description>
+  <author>Sébastien Dalibard</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/jrl_controller_manager</url>
+
+  <export>
+    <cpp
+       cflags="-I${prefix}/include"
+       lflags="-L${prefix}/lib -ljrl_controller_manager"
+       />
+  </export>
+
+  <depend package="std_msgs"/>
+  <depend package="jrl_dynamics_urdf"/>
+  <depend package="roscpp"/>
+  <depend package="realtime_tools" />
+  <depend package="sensor_msgs" />
+</package>
+
+
