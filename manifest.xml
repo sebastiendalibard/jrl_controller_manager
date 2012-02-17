@@ -16,8 +16,9 @@
        />
   </export>
 
+  <rosdep name="jrl-dynamics"/>
+
   <depend package="std_msgs"/>
-  <depend package="jrl_dynamics_urdf"/>
   <depend package="roscpp"/>
   <depend package="realtime_tools" />
   <depend package="sensor_msgs" />
