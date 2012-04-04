@@ -43,6 +43,8 @@ namespace jrl_controller_manager{
     ros::Duration publish_period_joint_state_;
     ros::Time last_published_joint_state_;
     
+    ros::Subscriber sub_;
+
     std::vector<unsigned int> joint_position_in_configuration_vector;
 
     /* Does the spinner need to be run in a different thread?*/

@@ -26,8 +26,3 @@ abstract-robot-dynamics:
     source:
       uri: 'https://raw.github.com/laas/redundant_manipulator_control/master/abstract-robot-dynamics.rdmanifest'
       
-
-jrl-dynamics:
-  ubuntu:
-    source:
-      uri: 'https://raw.github.com/laas/redundant_manipulator_control/master/jrl-dynamics.rdmanifest'

@@ -60,8 +60,8 @@ namespace jrl_controller_manager {
     for (unsigned int i = 0; i < joints_size; ++i)
       command_[i] = 0;
 
-    controller_node_.subscribe<JrlControl>("command",1,&ControllerManager::commandCB,this);
-
+    sub_ = controller_node_.subscribe<JrlControl>("command",1,&ControllerManager::commandCB,this);
+     
     ros_spinner_thread_ =  
       boost::thread( boost::bind( &ControllerManager::ControllerManagerROSThread,this ) );
     
