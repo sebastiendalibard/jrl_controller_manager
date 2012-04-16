@@ -1,3 +1,5 @@
+#include <sstream>
+#include <string>
 #include <jrl/mal/matrixabstractlayer.hh>
 #include "jrl_controller_manager/controller_manager.h"
 
@@ -7,9 +9,8 @@ namespace jrl_controller_manager {
     robot_(in_robot),
     controller_node_(nh),
     pub_joint_state_(nh,"joint_states",10),
-    pub_free_flyer_state_(nh,"free_flyer_state",10),
-    last_published_joint_state_(ros::Time::now()),
-    publish_period_joint_state_(0)
+    publish_period_joint_state_(0),
+    last_published_joint_state_(ros::Time::now())
   {}
 
   ControllerManager::~ControllerManager()
@@ -28,36 +29,15 @@ namespace jrl_controller_manager {
     }
     std::vector<CjrlJoint *> joint_vector = robot_->jointVector();
     std::vector<CjrlJoint *> actuated_joint_vector = robot_->getActuatedJoints();
-    unsigned int joints_size = actuated_joint_vector.size();
+    unsigned int nb_dofs = robot_->numberDof();
 
-    joint_position_in_configuration_vector.resize(joints_size);
-
-    for(unsigned int i = 0; i < joints_size; ++i) {
-      int found = 0;
-      int position = 0;
-      while (actuated_joint_vector[i] != joint_vector[found]) {
-	position += joint_vector[found]->numberDof ();
-	++found;
-      }
-      joint_position_in_configuration_vector[i] = position;
-    }
-    std::cout << "Number of actuated joints: " << joints_size << std::endl;
-    for(unsigned int i = 0; i < joints_size; ++i) {
-      std::cout << "Position of actuated joint " << i 
-		<< " in joint vector: " << joint_position_in_configuration_vector[i]
-		<< std::endl;
-    }
-
-    pub_joint_state_.msg_.name.resize(joints_size);
-    pub_joint_state_.msg_.position.resize(joints_size);
-    pub_joint_state_.msg_.velocity.resize(joints_size);
+    pub_joint_state_.msg_.name.resize(nb_dofs);
+    pub_joint_state_.msg_.position.resize(nb_dofs);
+    pub_joint_state_.msg_.velocity.resize(nb_dofs);
     pub_joint_state_.msg_.effort.resize(0);
 
-    pub_free_flyer_state_.msg_.position.resize(6);
-    pub_free_flyer_state_.msg_.velocity.resize(6);
-
-    command_.resize(joints_size);
-    for (unsigned int i = 0; i < joints_size; ++i)
+    command_.resize(actuated_joint_vector.size());
+    for (unsigned int i = 0; i < actuated_joint_vector.size(); ++i)
       command_[i] = 0;
 
     sub_ = controller_node_.subscribe<JrlControl>("command",1,&ControllerManager::commandCB,this);
@@ -67,25 +47,19 @@ namespace jrl_controller_manager {
     
     publish_period_joint_state_ = Duration(0.005);
     
+    std::cout << "Exiting controller manager::initialize()\n";
     return true;
   }
 
   void ControllerManager::update()
   {
-    ros::Rate loop_rate(200);
-
     //Publish state
     publishRobotState();
-
-    //Get command
-    //ros::spinOnce();
-    //loop_rate.sleep();
   }
 
   void ControllerManager::publishRobotState()
   {
-    std::vector<CjrlJoint *> joint_vector = robot_->getActuatedJoints();
-    unsigned int joints_size = joint_vector.size();
+    std::vector<CjrlJoint *> joint_vector = robot_->jointVector();
 
     vectorN current_configuration = robot_->currentConfiguration();
     vectorN current_velocity = robot_->currentVelocity();
@@ -98,26 +72,40 @@ namespace jrl_controller_manager {
 	  last_published_joint_state_ = 
 	    last_published_joint_state_ + publish_period_joint_state_;
       
-	for (unsigned int i = 0; i <  joints_size; ++i) {
-	  CjrlJoint* current_joint = joint_vector[i];
-	  unsigned int current_position = joint_position_in_configuration_vector[i];
-	  pub_joint_state_.msg_.name[i] = current_joint->getName();
-	  pub_joint_state_.msg_.position[i] = current_configuration(current_position);
-	  pub_joint_state_.msg_.velocity[i] = current_velocity(current_position);
+	/*
+	  ROS Joints are actually DoFs. For jrl joints with several DoFs,
+	  we create additional joints.
+	  Note: 0 DoF joints are ignored.
+	*/
+	unsigned int ros_joint_id = 0;
+	for (std::vector<CjrlJoint *>::iterator joint_it = joint_vector.begin();
+	     joint_it != joint_vector.end();
+	     ++joint_it) {
+	  unsigned int joint_position = (*joint_it)->rankInConfiguration();
+	  if ((*joint_it)->numberDof() > 1) {
+	    for(unsigned int dof_id = 0; dof_id < (*joint_it)->numberDof(); ++dof_id) {
+	      std::stringstream dof_name;
+	      dof_name << (*joint_it)->getName() << "-" << dof_id;
+	      pub_joint_state_.msg_.name[ros_joint_id] = dof_name.str();
+	      pub_joint_state_.msg_.position[ros_joint_id] =
+		current_configuration(joint_position + dof_id);
+	      pub_joint_state_.msg_.velocity[ros_joint_id] =
+		current_velocity(joint_position + dof_id);
+	      ros_joint_id++;
+	    }
+	  }
+	  else if ((*joint_it)->numberDof() == 1) {
+	    pub_joint_state_.msg_.name[ros_joint_id] = (*joint_it)->getName();
+	    pub_joint_state_.msg_.position[ros_joint_id] = current_configuration(joint_position);
+	    pub_joint_state_.msg_.velocity[ros_joint_id] = current_velocity(joint_position);
+	    ros_joint_id++;
+	  }
 	}
       }
       pub_joint_state_.msg_.header.stamp = ros::Time::now();
       pub_joint_state_.unlockAndPublish();
-      if (pub_free_flyer_state_.trylock()) {
-	for (unsigned int i = 0; i < 6; ++i) {
-	  pub_free_flyer_state_.msg_.position[i] = current_configuration[i];
-	  pub_free_flyer_state_.msg_.velocity[i] = current_velocity[i];
-	}
-      }
-      pub_free_flyer_state_.msg_.header.stamp = ros::Time::now();
-      pub_free_flyer_state_.unlockAndPublish();
- 
     }
+    
   }
   
   void ControllerManager::commandCB(const JrlControlConstPtr& msg)

@@ -10,7 +10,6 @@
 
 #include <abstract-robot-dynamics/dynamic-robot.hh>
 
-#include <jrl_controller_manager/FreeFlyerState.h>
 #include <jrl_controller_manager/JrlControl.h>
 
 namespace jrl_controller_manager{
@@ -39,13 +38,10 @@ namespace jrl_controller_manager{
     void commandCB(const JrlControlConstPtr& msg);
 
     realtime_tools::RealtimePublisher<sensor_msgs::JointState> pub_joint_state_;
-    realtime_tools::RealtimePublisher<FreeFlyerState> pub_free_flyer_state_;
     ros::Duration publish_period_joint_state_;
     ros::Time last_published_joint_state_;
     
     ros::Subscriber sub_;
-
-    std::vector<unsigned int> joint_position_in_configuration_vector;
 
     /* Does the spinner need to be run in a different thread?*/
     void ControllerManagerROSThread();
